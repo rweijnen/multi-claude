@@ -1,0 +1,19 @@
+{
+  "claude_exe": "C:/Users/me/.local/bin/claude.exe",
+  "accounts": [
+    {
+      "id": "personal",
+      "label": "Personal",
+      "color": "#cc3333",
+      "config_dir": null,
+      "hotkey": "p"
+    },
+    {
+      "id": "business",
+      "label": "Business",
+      "color": "#2ecc71",
+      "config_dir": "C:/Users/me/.claude-business",
+      "hotkey": "b"
+    }
+  ]
+}

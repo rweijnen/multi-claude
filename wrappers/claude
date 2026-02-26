@@ -1,0 +1,4 @@
+#!/bin/bash
+# Claude Code multi-account launcher wrapper.
+# Place this in ~/bin/ (ahead of ~/.local/bin in PATH).
+exec python ~/.claude/launcher.py "$@"
