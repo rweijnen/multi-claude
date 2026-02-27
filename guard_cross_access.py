@@ -99,6 +99,7 @@ def main():
 
     if matched:
         account = os.environ.get("CLAUDE_ACCOUNT", "unknown")
+        config_dir = os.environ.get("CLAUDE_CONFIG_DIR", "~/.claude")
         # Reconstruct the original path for display
         display_dir = matched.replace("/", "\\") if "\\" in raw_dirs[0] else matched
         result = {
@@ -107,8 +108,10 @@ def main():
                 "permissionDecision": "deny",
                 "reason": (
                     f"Cross-account access denied. "
-                    f"You are running as the {account} account. "
-                    f"Access to {display_dir} is forbidden."
+                    f"You are running as the '{account}' account "
+                    f"(config: {config_dir}). "
+                    f"Access to {display_dir} is forbidden. "
+                    f"That path belongs to a different account."
                 ),
             }
         }

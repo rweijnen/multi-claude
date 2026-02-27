@@ -20,6 +20,14 @@ to launch. This tool handles all of that.
 - **Config-driven** -- add unlimited accounts via `~/.claude-launcher.json`
 - **Works on Windows, macOS, and Linux**
 
+## Screenshots
+
+### Account picker with config menu
+![Account picker and config menu](assets/screenshot.png)
+
+### Colored tab per account
+![Business account with green tab color](assets/screenshot-coloured-tab.png)
+
 ## Quick start
 
 ```bash
