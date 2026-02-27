@@ -299,10 +299,75 @@ def check_path():
         print(f"\nPATH looks good: {bin_dir} is in PATH.")
 
 
-def main():
+def load_existing_config():
+    """Load existing ~/.claude-launcher.json if it exists."""
+    if not CONFIG_FILE.exists():
+        return None
+    try:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def deploy_files(accounts):
+    """Deploy all files to their local locations (shared by setup and update)."""
+    create_config_dirs(accounts)
+    copy_guard_hook(accounts)
+    write_settings_json(accounts)
+    write_claude_md_isolation(accounts)
+    copy_launcher(accounts)
+    copy_wrappers()
+    check_path()
+
+
+def update():
+    """Update mode: read existing config and redeploy all files."""
+    print("=" * 60)
+    print("  Multi-Account Claude Code -- Update")
+    print("=" * 60)
+
+    cfg = load_existing_config()
+    if not cfg:
+        print(f"\nNo existing config found at {CONFIG_FILE}.")
+        print("Run 'python setup.py' without --update to do initial setup.")
+        sys.exit(1)
+
+    accounts = cfg.get("accounts", [])
+    if not accounts:
+        print(f"\nNo accounts found in {CONFIG_FILE}.")
+        sys.exit(1)
+
+    print(f"\nFound {len(accounts)} account(s) in {CONFIG_FILE}:")
+    for i, acct in enumerate(accounts):
+        d = acct.get("config_dir") or "~/.claude (default)"
+        print(f"  [{i + 1}] {acct.get('label', acct.get('id', '?'))} (dir={d})")
+
+    print("\nRedeploying files...")
+    deploy_files(accounts)
+
+    print("\n" + "=" * 60)
+    print("  Update complete!")
+    print("=" * 60)
+
+
+def setup():
+    """Full interactive setup."""
     print("=" * 60)
     print("  Multi-Account Claude Code Setup")
     print("=" * 60)
+
+    existing = load_existing_config()
+    if existing and existing.get("accounts"):
+        print(f"\nExisting config found at {CONFIG_FILE}.")
+        if ask_yn("Update files using existing config? (No = reconfigure from scratch)"):
+            accounts = existing["accounts"]
+            print("\nRedeploying files...")
+            deploy_files(accounts)
+            print("\n" + "=" * 60)
+            print("  Update complete!")
+            print("=" * 60)
+            return
 
     # Find claude binary
     claude_exe = find_claude_exe()
@@ -327,18 +392,19 @@ def main():
 
     # Execute setup steps
     write_config(claude_exe, accounts)
-    create_config_dirs(accounts)
-    copy_guard_hook(accounts)
-    write_settings_json(accounts)
-    write_claude_md_isolation(accounts)
-    copy_launcher(accounts)
-    copy_wrappers()
-    check_path()
+    deploy_files(accounts)
 
     print("\n" + "=" * 60)
     print("  Setup complete!")
     print("=" * 60)
     print("\nRun 'claude' from your terminal to test the account picker.")
+
+
+def main():
+    if "--update" in sys.argv:
+        update()
+    else:
+        setup()
 
 
 if __name__ == "__main__":

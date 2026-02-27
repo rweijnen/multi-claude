@@ -31,16 +31,35 @@ def _msys2_form(win_path):
     return None
 
 
+def _is_path_match(text, prefix):
+    """Check if text contains prefix as a proper directory path.
+
+    Matches 'prefix/' or 'prefix' at end-of-string, but NOT 'prefix-other'.
+    This prevents c:/users/me/.claude from matching c:/users/me/.claude-business.
+    """
+    idx = text.find(prefix)
+    while idx != -1:
+        end = idx + len(prefix)
+        # Check what follows: must be /, \, end-of-string, or whitespace
+        if end >= len(text) or text[end] in ("/", "\\", " ", "\t", "'", '"'):
+            return True
+        idx = text.find(prefix, idx + 1)
+    return False
+
+
 def _contains_any_forbidden(text, forbidden_list):
     """Check if text contains any forbidden path in any format."""
     lowered = text.lower()
     fwd = lowered.replace("\\", "/")
     for norm, msys in forbidden_list:
-        if norm in fwd:
+        # Forward-slash form
+        if _is_path_match(fwd, norm):
             return norm
-        if norm.replace("/", "\\") in lowered:
+        # Backslash form
+        if _is_path_match(lowered, norm.replace("/", "\\")):
             return norm
-        if msys and msys in lowered:
+        # MSYS2 form
+        if msys and _is_path_match(lowered, msys):
             return norm
     return None
 

@@ -47,6 +47,23 @@ The setup script will:
 8. Copy wrapper scripts (`claude`, `claude.cmd`) to `~/bin/`
 9. Check that `~/bin` is in your PATH ahead of `~/.local/bin`
 
+If you already have a config, setup.py will detect it and offer to redeploy
+files using your existing configuration (no need to re-enter accounts).
+
+## Updating
+
+After pulling new changes:
+
+```bash
+cd multi-claude
+git pull
+python setup.py --update
+```
+
+This reads your existing `~/.claude-launcher.json` and redeploys all files
+(launcher, guard hooks, wrappers, settings, CLAUDE.md) without prompting
+for account details. Your configuration is preserved.
+
 ## Manual setup
 
 If you prefer to set things up by hand:
