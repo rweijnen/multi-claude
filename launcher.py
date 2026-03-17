@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Claude Code account launcher.
 
 Config-driven TUI picker that lets the user choose between multiple
@@ -450,19 +450,42 @@ def config_menu(cfg):
 
 # -- Launch -----------------------------------------------------------------
 
+def iterm2_tab_sequence(r, g, b):
+    """Return iTerm2 escape sequences to set tab color."""
+    return (
+        f"\033]6;1;bg;red;brightness;{r}\a"
+        f"\033]6;1;bg;green;brightness;{g}\a"
+        f"\033]6;1;bg;blue;brightness;{b}\a"
+    )
+
+
+ITERM2_RESET = "\033]6;1;bg;*;default\a"
+
+
+def is_iterm2():
+    """Check if running inside iTerm2."""
+    return os.environ.get("TERM_PROGRAM", "") == "iTerm.app"
+
+
 def set_tab_color(acct):
-    """Emit Windows Terminal tab color escape sequence."""
+    """Emit tab color escape sequence for the current terminal."""
     try:
         r, g, b = hex_to_rgb(acct["color"])
-        sys.stdout.write(wt_tab_sequence(r, g, b))
+        if is_iterm2():
+            sys.stdout.write(iterm2_tab_sequence(r, g, b))
+        else:
+            sys.stdout.write(wt_tab_sequence(r, g, b))
         sys.stdout.flush()
     except (ValueError, KeyError):
         pass
 
 
 def reset_tab_color():
-    """Reset Windows Terminal tab color to default."""
-    sys.stdout.write(WT_RESET)
+    """Reset tab color to default for the current terminal."""
+    if is_iterm2():
+        sys.stdout.write(ITERM2_RESET)
+    else:
+        sys.stdout.write(WT_RESET)
     sys.stdout.flush()
 
 

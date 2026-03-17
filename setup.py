@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Interactive setup for multi-account Claude Code.
 
 Walks the user through configuring multiple Claude accounts:
@@ -56,6 +56,7 @@ def find_claude_exe():
     else:
         candidates = [
             HOME / ".local" / "bin" / "claude",
+            Path("/opt/homebrew/bin/claude"),
             Path("/usr/local/bin/claude"),
         ]
     for c in candidates:
@@ -156,9 +157,15 @@ def copy_guard_hook(accounts):
 
 def write_settings_json(accounts):
     """Write or update settings.json with the guard hook for each account."""
+    python_cmd = "python" if platform.system() == "Windows" else "python3"
     hook_entry = {
-        "type": "command",
-        "command": "python hooks/guard_cross_access.py",
+        "matcher": "",
+        "hooks": [
+            {
+                "type": "command",
+                "command": f"{python_cmd} hooks/guard_cross_access.py",
+            }
+        ],
     }
 
     for acct in accounts:
@@ -180,9 +187,21 @@ def write_settings_json(accounts):
         hooks = settings.setdefault("hooks", {})
         pre_tool = hooks.setdefault("PreToolUse", [])
 
-        # Check if guard hook already exists
-        already = any("guard_cross_access" in (h.get("command", ""))
-                       for h in pre_tool if isinstance(h, dict))
+        # Check if guard hook already exists (handle both old and new format)
+        already = False
+        for h in pre_tool:
+            if isinstance(h, dict):
+                cmd = h.get("command", "")
+                hook_list = h.get("hooks", [])
+                if "guard_cross_access" in cmd:
+                    already = True
+                    break
+                for sub_hook in hook_list:
+                    if isinstance(sub_hook, dict) and "guard_cross_access" in sub_hook.get("command", ""):
+                        already = True
+                        break
+            if already:
+                break
         if not already:
             pre_tool.append(hook_entry)
 
@@ -271,7 +290,7 @@ def copy_wrappers():
 
 
 def check_path():
-    """Warn if ~/bin is not in PATH or not ahead of ~/.local/bin."""
+    """Warn if ~/bin is not in PATH or not ahead of the real claude binary."""
     bin_dir = str(HOME / "bin")
     local_bin = str(HOME / ".local" / "bin")
     path = os.environ.get("PATH", "")
@@ -282,21 +301,38 @@ def check_path():
     norm_bin = bin_dir.replace("\\", "/").lower().rstrip("/")
     norm_local = local_bin.replace("\\", "/").lower().rstrip("/")
 
+    # Directories that may contain the real claude binary
+    claude_dirs = [norm_local, "/opt/homebrew/bin", "/usr/local/bin"]
+
     if norm_bin not in norm_dirs:
         print(f"\nWARNING: {bin_dir} is not in your PATH.")
-        print("Add it to your PATH ahead of ~/.local/bin for the wrappers to work.")
+        if platform.system() == "Darwin":
+            print("Add this to your ~/.zshrc:")
+            print('  export PATH="$HOME/bin:$PATH"')
+        elif platform.system() != "Windows":
+            print("Add this to your ~/.bashrc:")
+            print('  export PATH="$HOME/bin:$PATH"')
+        else:
+            print("Add it to your PATH ahead of the real claude binary for the wrappers to work.")
         return
 
     bin_idx = norm_dirs.index(norm_bin)
-    if norm_local in norm_dirs:
-        local_idx = norm_dirs.index(norm_local)
-        if bin_idx > local_idx:
-            print(f"\nWARNING: {bin_dir} appears AFTER ~/.local/bin in PATH.")
-            print("Move it earlier so the wrapper takes precedence over the real binary.")
-        else:
-            print(f"\nPATH looks good: {bin_dir} is ahead of ~/.local/bin.")
-    else:
-        print(f"\nPATH looks good: {bin_dir} is in PATH.")
+    blocked = False
+    for claude_dir in claude_dirs:
+        norm_cd = claude_dir.replace("\\", "/").lower().rstrip("/")
+        if norm_cd in norm_dirs:
+            cd_idx = norm_dirs.index(norm_cd)
+            if bin_idx > cd_idx:
+                print(f"\nWARNING: {bin_dir} appears AFTER {claude_dir} in PATH.")
+                print("Move it earlier so the wrapper takes precedence over the real binary.")
+                if platform.system() == "Darwin":
+                    print("Add this to your ~/.zshrc:")
+                    print('  export PATH="$HOME/bin:$PATH"')
+                blocked = True
+                break
+
+    if not blocked:
+        print(f"\nPATH looks good: {bin_dir} is ahead of the real claude binary.")
 
 
 def load_existing_config():
