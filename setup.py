@@ -156,16 +156,22 @@ def copy_guard_hook(accounts):
 
 def write_settings_json(accounts):
     """Write or update settings.json with the guard hook for each account."""
-    hook_entry = {
-        "type": "command",
-        "command": "python hooks/guard_cross_access.py",
-    }
-
     for acct in accounts:
         if acct["config_dir"]:
-            settings_path = Path(acct["config_dir"]) / "settings.json"
+            config_dir = Path(acct["config_dir"])
+            settings_path = config_dir / "settings.json"
         else:
-            settings_path = HOME / ".claude" / "settings.json"
+            config_dir = HOME / ".claude"
+            settings_path = config_dir / "settings.json"
+
+        # Absolute path avoids cwd-dependent failures when Claude runs the hook
+        hook_cmd = str(config_dir / "hooks" / "guard_cross_access.py")
+        # Use forward slashes for consistency across platforms
+        hook_cmd = hook_cmd.replace("\\", "/")
+        hook_entry = {
+            "matcher": "Bash|Read|Write|Edit|Glob|Grep",
+            "hooks": [{"type": "command", "command": f"python \"{hook_cmd}\""}],
+        }
 
         # Load existing settings or start fresh
         settings = {}
@@ -180,11 +186,19 @@ def write_settings_json(accounts):
         hooks = settings.setdefault("hooks", {})
         pre_tool = hooks.setdefault("PreToolUse", [])
 
-        # Check if guard hook already exists
-        already = any("guard_cross_access" in (h.get("command", ""))
-                       for h in pre_tool if isinstance(h, dict))
-        if not already:
-            pre_tool.append(hook_entry)
+        # Remove any old-format guard entries, then add the new one
+        pre_tool[:] = [
+            h for h in pre_tool
+            if not (
+                isinstance(h, dict) and (
+                    "guard_cross_access" in h.get("command", "") or
+                    any("guard_cross_access" in sub.get("command", "")
+                        for sub in h.get("hooks", [])
+                        if isinstance(sub, dict))
+                )
+            )
+        ]
+        pre_tool.append(hook_entry)
 
         with open(settings_path, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=2)
@@ -222,11 +236,12 @@ def write_claude_md_isolation(accounts):
             existing = claude_md.read_text(encoding="utf-8")
 
         if "## Account Isolation" in existing:
-            # Replace existing section
+            # Replace existing section; use lambda to avoid backslash
+            # interpretation in replacement string (Windows paths contain \U etc.)
             import re
             existing = re.sub(
                 r"\n## Account Isolation\n.*?(?=\n## |\Z)",
-                isolation_section,
+                lambda _: isolation_section,
                 existing,
                 flags=re.DOTALL,
             )
