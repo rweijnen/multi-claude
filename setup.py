@@ -157,12 +157,13 @@ def copy_guard_hook(accounts):
 
 def write_settings_json(accounts):
     """Write or update settings.json with the guard hook for each account."""
+    python_cmd = "python" if platform.system() == "Windows" else "python3"
     hook_entry = {
         "matcher": "",
         "hooks": [
             {
                 "type": "command",
-                "command": "python3 hooks/guard_cross_access.py",
+                "command": f"{python_cmd} hooks/guard_cross_access.py",
             }
         ],
     }
